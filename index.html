@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Bốc Thăm Đếm Ngược 25 Lượt</title>
+    <style>
+        :root { --primary: #2c3e50; --accent: #e74c3c; --success: #27ae60; --bg: #f4f7f6; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 20px; }
+        .app-card { background: white; width: 100%; max-width: 450px; padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); overflow: hidden; position: relative; }
+        
+        h2 { text-align: center; color: var(--primary); margin-bottom: 25px; }
+        
+        /* Giao diện nhập quà */
+        .input-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+        .input-item { display: flex; align-items: center; gap: 10px; }
+        .input-item label { width: 60px; font-size: 14px; font-weight: bold; }
+        .input-item input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; outline: none; }
+
+        /* Giao diện bốc thăm */
+        #draw-ui { display: none; text-align: center; }
+        .display-box { 
+            margin: 25px 0; 
+            padding: 50px 15px; 
+            border: 2px solid #eee; 
+            border-radius: 15px; 
+            background: #fff; 
+            min-height: 120px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Hiệu ứng đếm ngược và kết quả */
+        #countdown { font-size: 60px; font-weight: bold; color: var(--accent); display: none; }
+        #result-text { font-size: 28px; font-weight: bold; color: var(--success); display: none; z-index: 2; }
+        .gift-icon { font-size: 50px; margin-bottom: 10px; transition: 0.3s; }
+        
+        /* Hiệu ứng rung lắc */
+        .shake { animation: shake 0.5s infinite; }
+        @keyframes shake {
+            0% { transform: rotate(0deg); }
+            25% { transform: rotate(5deg); }
+            50% { transform: rotate(0deg); }
+            75% { transform: rotate(-5deg); }
+            100% { transform: rotate(0deg); }
+        }
+
+        /* Nút bấm */
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 12px; cursor: pointer; font-size: 18px; font-weight: bold; transition: 0.3s; }
+        .btn-start { background: var(--primary); color: white; }
+        .btn-draw { background: var(--accent); color: white; box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3); }
+        .btn:disabled { background: #ccc; box-shadow: none; cursor: not-allowed; }
+
+        /* Lịch sử */
+        .history { margin-top: 25px; text-align: left; border-top: 1px solid #eee; padding-top: 15px; }
+        #history-list { max-height: 120px; overflow-y: auto; background: #f9f9f9; padding: 10px; border-radius: 8px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="app-card">
+    <div id="setup-ui">
+        <h2>Cài đặt quà tặng</h2>
+        <div class="input-list" id="input-container"></div>
+        <button class="btn btn-start" onclick="initApp()">Bắt đầu (25 lượt bốc)</button>
+    </div>
+
+    <div id="draw-ui">
+        <h2 id="turn-title">Lượt còn lại: 25</h2>
+        <div class="display-box" id="box">
+            <div id="gift-icon" class="gift-icon">🎁</div>
+            <div id="countdown">3</div>
+            <div id="result-text"></div>
+        </div>
+        <button id="draw-btn" class="btn btn-draw" onclick="startCountdown()">BỐC QUÀ NGAY</button>
+        
+        <div class="history">
+            <strong>Lịch sử:</strong>
+            <div id="history-list"></div>
+        </div>
+        <button class="btn" style="margin-top:20px; background:none; color:#aaa; font-size:12px; text-decoration:underline" onclick="location.reload()">Reset lại ứng dụng</button>
+    </div>
+</div>
+
+<script>
+    const container = document.getElementById('input-container');
+    let pool = [];
+    let currentIdx = 0;
+
+    // Tạo 10 ô nhập
+    for (let i = 1; i <= 10; i++) {
+        container.innerHTML += `
+            <div class="input-item">
+                <label>Quà ${i}:</label>
+                <input type="text" id="gift-${i}" value="Món quà ${i}">
+            </div>`;
+    }
+
+    function initApp() {
+        const userGifts = [];
+        for (let i = 1; i <= 10; i++) {
+            userGifts.push(document.getElementById(`gift-${i}`).value || `Quà ${i}`);
+        }
+
+        // Logic 25 lượt: Món 1,2,3 (1 lần), Món 4 (2 lần), 20 lượt còn lại (Món 5-10)
+        pool = [];
+        pool.push(userGifts[0], userGifts[1], userGifts[2], userGifts[3], userGifts[3]);
+        for (let i = 0; i < 20; i++) {
+            let rand = Math.floor(Math.random() * 6) + 4; 
+            pool.push(userGifts[rand]);
+        }
+
+        // Xáo trộn
+        for (let i = pool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+
+        document.getElementById('setup-ui').style.display = 'none';
+        document.getElementById('draw-ui').style.display = 'block';
+    }
+
+    function startCountdown() {
+        const btn = document.getElementById('draw-btn');
+        const countEl = document.getElementById('countdown');
+        const giftIcon = document.getElementById('gift-icon');
+        const resultEl = document.getElementById('result-text');
+        
+        btn.disabled = true;
+        resultEl.style.display = 'none';
+        giftIcon.style.display = 'block';
+        giftIcon.classList.add('shake');
+        countEl.style.display = 'block';
+
+        let count = 3;
+        countEl.innerText = count;
+
+        const timer = setInterval(() => {
+            count--;
+            if (count > 0) {
+                countEl.innerText = count;
+            } else {
+                clearInterval(timer);
+                showResult();
+            }
+        }, 800);
+    }
+
+    function showResult() {
+        const giftIcon = document.getElementById('gift-icon');
+        const countEl = document.getElementById('countdown');
+        const resultEl = document.getElementById('result-text');
+        const btn = document.getElementById('draw-btn');
+        const historyList = document.getElementById('history-list');
+        const turnTitle = document.getElementById('turn-title');
+
+        giftIcon.classList.remove('shake');
+        giftIcon.style.display = 'none';
+        countEl.style.display = 'none';
+
+        const result = pool[currentIdx];
+        resultEl.innerText = result;
+        resultEl.style.display = 'block';
+        
+        // Thêm vào lịch sử
+        const log = document.createElement('div');
+        log.innerHTML = `Lượt ${currentIdx + 1}: <b>${result}</b>`;
+        historyList.prepend(log);
+
+        currentIdx++;
+        turnTitle.innerText = `Lượt còn lại: ${25 - currentIdx}`;
+
+        if (currentIdx < 25) {
+            btn.disabled = false;
+            btn.innerText = "TIẾP TỤC BỐC";
+        } else {
+            btn.innerText = "ĐÃ HẾT LƯỢT";
+            btn.style.background = "#95a5a6";
+        }
+    }
+</script>
+
+</body>
+</html>
